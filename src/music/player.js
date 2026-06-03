@@ -35,6 +35,9 @@ async function playSong(guildId, song, textChannel) {
 
     if (!ytProcess.stdout) throw new Error('yt-dlp no produjo stdout');
 
+    ytProcess.stderr.on('data', d => console.error('[yt-dlp]', d.toString().trim()));
+    ytProcess.on('exit', (code) => console.log(`[yt-dlp] salió con código ${code}`));
+
     const resource = createAudioResource(ytProcess.stdout, {
       inputType: StreamType.Arbitrary,
     });
