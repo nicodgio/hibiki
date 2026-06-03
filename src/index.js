@@ -1,5 +1,9 @@
 require('dotenv').config();
-process.env.FFMPEG_PATH = require('ffmpeg-static');
+// Windows (local): usar ffmpeg-static. Linux (Railway): usa ffmpeg del sistema (apt).
+try {
+  const ffmpegPath = require('ffmpeg-static');
+  if (ffmpegPath) process.env.FFMPEG_PATH = ffmpegPath;
+} catch {}
 
 const { Client, GatewayIntentBits, Collection } = require('discord.js');
 const fs = require('fs');
