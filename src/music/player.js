@@ -1,6 +1,28 @@
 const { createAudioResource, StreamType, AudioPlayerStatus } = require('@discordjs/voice');
-const ytdlpExec = require('yt-dlp-exec');
+const { spawn } = require('child_process');
 const { queues, DISCONNECT_TIMEOUT } = require('./queue');
+
+function spawnYtdlp(url) {
+  let binary = 'yt-dlp';
+
+  if (process.platform === 'win32') {
+    try {
+      // Usar el binario que yt-dlp-exec descargó localmente en Windows
+      const { YOUTUBE_DL_PATH } = require('yt-dlp-exec/src/constants');
+      binary = YOUTUBE_DL_PATH;
+    } catch {
+      binary = 'yt-dlp';
+    }
+  }
+
+  return spawn(binary, [
+    url,
+    '-o', '-',
+    '-f', 'bestaudio',
+    '--quiet',
+    '--no-warnings',
+  ]);
+}
 
 async function playSong(guildId, song, textChannel) {
   const queue = queues.get(guildId);
@@ -9,12 +31,7 @@ async function playSong(guildId, song, textChannel) {
   try {
     console.log('[Hibiki] Streaming:', song.url);
 
-    const ytProcess = ytdlpExec.exec(song.url, {
-      output: '-',
-      format: 'bestaudio',
-      quiet: true,
-      noWarnings: true,
-    });
+    const ytProcess = spawnYtdlp(song.url);
 
     if (!ytProcess.stdout) throw new Error('yt-dlp no produjo stdout');
 
@@ -38,7 +55,7 @@ async function playSong(guildId, song, textChannel) {
       if (queue.songs.length > 0) {
         playSong(guildId, queue.shiftSong(), textChannel);
       } else {
-        textChannel.send('📜 El pergamino ha sido agotado. Hibiki aguardará órdenes durante 30 segundos antes de retirarse.');
+        textChannel.send('📜 El pergamino ha sido agotado. Hibiki aguardará 30 segundos antes de retirarse.');
         queue.disconnectTimer = setTimeout(() => {
           queue.destroy();
           queues.delete(guildId);
