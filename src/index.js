@@ -4,6 +4,12 @@ if (process.platform === 'win32') {
   try { process.env.FFMPEG_PATH = require('ffmpeg-static'); } catch {}
 }
 
+if (process.env.YOUTUBE_COOKIE) {
+  const play = require('play-dl');
+  play.setToken({ youtube: { cookie: process.env.YOUTUBE_COOKIE } });
+  console.log('[Hibiki] YouTube cookie cargada.');
+}
+
 const { Client, GatewayIntentBits, Collection } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
