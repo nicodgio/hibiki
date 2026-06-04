@@ -1,7 +1,6 @@
 const play = require('play-dl');
-const { queues, getOrCreateQueue } = require('../music/queue');
+const { getOrCreateQueue } = require('../music/queue');
 const { playSong } = require('../music/player');
-const { getArtistTopTracks } = require('../music/spotify');
 
 module.exports = {
   name: 'mix',
@@ -30,53 +29,29 @@ module.exports = {
       return message.reply('📜 Indica el nombre de un artista.\n> Ejemplo: `>mix Bad Bunny` o `>mix Eminem 5`');
     }
 
-    console.log('[Spotify ENV] ID:', process.env.SPOTIFY_CLIENT_ID ? 'OK' : 'MISSING', '| SECRET:', process.env.SPOTIFY_CLIENT_SECRET ? 'OK' : 'MISSING');
-    if (!process.env.SPOTIFY_CLIENT_ID || !process.env.SPOTIFY_CLIENT_SECRET) {
-      return message.reply('⚠️ Las credenciales de Spotify no están configuradas en el servidor.');
-    }
-
     const aviso = await message.reply(`🎐 El heraldo parte en busca de las mejores melodías de **${artistQuery}**...`);
 
-    let artistData;
+    let results;
     try {
-      artistData = await getArtistTopTracks(artistQuery, limit);
+      results = await play.search(`${artistQuery} top songs`, {
+        source: { youtube: 'video' },
+        limit,
+      });
     } catch (err) {
-      console.error('[Hibiki Mix Spotify Error]', err);
-      return aviso.edit('⚠️ No se pudo consultar el archivo de melodías de Spotify. Inténtalo de nuevo.');
+      console.error('[Hibiki Mix Error]', err);
+      return aviso.edit('⚠️ Los mensajeros fallaron al buscar las melodías. Inténtalo de nuevo.');
     }
 
-    if (!artistData) {
-      return aviso.edit(`📜 No se encontró ningún artista llamado **${artistQuery}** en los archivos.`);
+    if (!results.length) {
+      return aviso.edit(`📜 No se encontraron melodías para **${artistQuery}**.`);
     }
 
-    await aviso.edit(`🎐 Buscando las melodías de **${artistData.artistName}** en los pergaminos de YouTube...`);
-
-    // Buscar cada track en YouTube en paralelo
-    const results = await Promise.allSettled(
-      artistData.tracks.map(track =>
-        play.search(track.query, { source: { youtube: 'video' }, limit: 1 })
-          .then(res => {
-            if (!res.length) return null;
-            const video = res[0];
-            const url = video.url ?? `https://www.youtube.com/watch?v=${video.id}`;
-            if (!url || url.includes('undefined')) return null;
-            return {
-              title: video.title,
-              url,
-              duration: formatDuration(video.durationInSec),
-              requestedBy: message.author.tag,
-            };
-          })
-      )
-    );
-
-    const songs = results
-      .filter(r => r.status === 'fulfilled' && r.value)
-      .map(r => r.value);
-
-    if (!songs.length) {
-      return aviso.edit('📜 No se encontraron melodías en YouTube para este artista.');
-    }
+    const songs = results.map(v => ({
+      title: v.title,
+      url: v.url ?? `https://www.youtube.com/watch?v=${v.id}`,
+      duration: formatDuration(v.durationInSec),
+      requestedBy: message.author.tag,
+    })).filter(s => s.url && !s.url.includes('undefined'));
 
     let queue;
     try {
@@ -91,13 +66,13 @@ module.exports = {
     if (!queue.isPlaying) {
       const song = queue.shiftSong();
       await aviso.edit(
-        `🎴 Mix de **${artistData.artistName}** — **${songs.length} melodías** invocadas.\n` +
+        `🎴 Mix de **${artistQuery}** — **${songs.length} melodías** invocadas.\n` +
         `　　↳ Comenzando con: **${song.title}**`
       );
       playSong(message.guildId, song, message.channel);
     } else {
       await aviso.edit(
-        `📜 Mix de **${artistData.artistName}** — **${songs.length} melodías** añadidas al pergamino.`
+        `📜 Mix de **${artistQuery}** — **${songs.length} melodías** añadidas al pergamino.`
       );
     }
   },
