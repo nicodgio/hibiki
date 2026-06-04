@@ -30,6 +30,7 @@ module.exports = {
       return message.reply('📜 Indica el nombre de un artista.\n> Ejemplo: `>mix Bad Bunny` o `>mix Eminem 5`');
     }
 
+    console.log('[Spotify ENV] ID:', process.env.SPOTIFY_CLIENT_ID ? 'OK' : 'MISSING', '| SECRET:', process.env.SPOTIFY_CLIENT_SECRET ? 'OK' : 'MISSING');
     if (!process.env.SPOTIFY_CLIENT_ID || !process.env.SPOTIFY_CLIENT_SECRET) {
       return message.reply('⚠️ Las credenciales de Spotify no están configuradas en el servidor.');
     }
