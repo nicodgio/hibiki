@@ -1,6 +1,5 @@
-const { joinVoiceChannel, VoiceConnectionStatus, entersState } = require('@discordjs/voice');
 const play = require('play-dl');
-const { GuildQueue, queues } = require('../music/queue');
+const { queues, getOrCreateQueue } = require('../music/queue');
 const { playSong } = require('../music/player');
 
 module.exports = {
@@ -19,23 +18,35 @@ module.exports = {
 
     const query = args.join(' ');
     if (!query) {
-      return message.reply('📜 Indica una melodía o URL.\n> Ejemplo: `>invocar nombre de canción`');
+      return message.reply('📜 Indica una melodía, URL o playlist.\n> Ejemplo: `>invocar nombre de canción`');
     }
 
     const aviso = await message.reply('🎐 El mensajero parte en busca de la melodía...');
 
-    let songInfo;
+    let songs = [];
     try {
-      const isYouTubeUrl = play.yt_validate(query) === 'video';
+      const validated = play.yt_validate(query);
 
-      if (isYouTubeUrl) {
+      if (validated === 'playlist') {
+        await aviso.edit('🎐 Desenrollando el pergamino de la playlist...');
+        const playlistInfo = await play.playlist_info(query, { incomplete: true });
+        const videos = await playlistInfo.all_videos();
+        if (!videos.length) return aviso.edit('📜 La playlist está vacía o no es accesible.');
+
+        songs = videos.slice(0, 50).map(v => ({
+          title: v.title,
+          url: v.url,
+          duration: formatDuration(v.durationInSec),
+          requestedBy: message.author.tag,
+        }));
+      } else if (validated === 'video') {
         const info = await play.video_info(query);
-        songInfo = {
+        songs = [{
           title: info.video_details.title,
           url: info.video_details.url,
           duration: formatDuration(info.video_details.durationInSec),
           requestedBy: message.author.tag,
-        };
+        }];
       } else {
         const results = await play.search(query, { source: { youtube: 'video' }, limit: 1 });
         if (!results.length) return aviso.edit('📜 Los pergaminos no contienen tal melodía.');
@@ -44,54 +55,38 @@ module.exports = {
         if (!videoUrl || videoUrl.includes('undefined')) {
           return aviso.edit('📜 No fue posible resolver la melodía. Intenta con la URL directa.');
         }
-        songInfo = {
+        songs = [{
           title: video.title,
           url: videoUrl,
           duration: formatDuration(video.durationInSec),
           requestedBy: message.author.tag,
-        };
+        }];
       }
     } catch (err) {
       console.error('[Hibiki Invoke Error]', err);
       return aviso.edit('⚠️ Los mensajeros fallaron al buscar la melodía. Inténtalo de nuevo.');
     }
 
-    const guildId = message.guildId;
-    let queue = queues.get(guildId);
-
-    if (!queue) {
-      const connection = joinVoiceChannel({
-        channelId: voiceChannel.id,
-        guildId,
-        adapterCreator: message.guild.voiceAdapterCreator,
-        selfDeaf: true,
-      });
-
-      connection.on('stateChange', (o, n) => {
-        console.log(`[Voice] ${o.status} → ${n.status}`);
-      });
-
-      try {
-        await entersState(connection, VoiceConnectionStatus.Ready, 30_000);
-      } catch (err) {
-        console.error('[Voice Connection Error]', err?.message);
-        connection.destroy();
-        return aviso.edit('🌩️ Hibiki no pudo llegar a la cámara de voz. Inténtalo de nuevo.');
-      }
-
-      queue = new GuildQueue(guildId, voiceChannel, message.channel, connection);
-      queues.set(guildId, queue);
+    let queue;
+    try {
+      queue = await getOrCreateQueue(message, voiceChannel);
+    } catch (err) {
+      console.error('[Voice Connection Error]', err?.message);
+      return aviso.edit('🌩️ Hibiki no pudo llegar a la cámara de voz. Inténtalo de nuevo.');
     }
 
-    queue.addSong(songInfo);
+    for (const song of songs) queue.addSong(song);
 
     if (!queue.isPlaying) {
       const song = queue.shiftSong();
-      await aviso.edit(`🎴 Hibiki desenrolla el pergamino... **${song.title}** comenzará a sonar.`);
-      playSong(guildId, song, message.channel);
+      const extra = songs.length > 1 ? ` (+${songs.length - 1} en pergamino)` : '';
+      await aviso.edit(`🎴 Hibiki desenrolla el pergamino... **${song.title}** comenzará a sonar.${extra}`);
+      playSong(message.guildId, song, message.channel);
+    } else if (songs.length > 1) {
+      await aviso.edit(`📜 **${songs.length} melodías** añadidas al pergamino.`);
     } else {
       await aviso.edit(
-        `📜 Añadido al pergamino (#${queue.songs.length}): **${songInfo.title}** \`[${songInfo.duration}]\``
+        `📜 Añadido al pergamino (#${queue.songs.length}): **${songs[0].title}** \`[${songs[0].duration}]\``
       );
     }
   },

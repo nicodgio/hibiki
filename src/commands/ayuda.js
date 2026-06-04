@@ -8,7 +8,8 @@ module.exports = {
       .setTitle('⛩️ Pergamino de Órdenes — 響 Hibiki')
       .setColor(0x8b0000)
       .setDescription(
-        '🎴 **>invocar** `>inv` — Convoca una melodía del reino\n' +
+        '🎴 **>invocar** `>inv` — Convoca una melodía, URL o playlist de YouTube\n' +
+        '🎭 **>mix** `>artista` `>art` — Invoca el top de un artista *(>mix Bad Bunny 10)*\n' +
         '⚔️ **>siguiente** `>sig` — Descarta la melodía actual\n' +
         '🏯 **>disolver** `>dis` — Despide a Hibiki del salón\n' +
         '🏮 **>silencio** `>sil` — Ordena a Hibiki guardar silencio\n' +

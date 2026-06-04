@@ -1,4 +1,4 @@
-const { createAudioPlayer, VoiceConnectionStatus, entersState } = require('@discordjs/voice');
+const { createAudioPlayer, VoiceConnectionStatus, entersState, joinVoiceChannel } = require('@discordjs/voice');
 
 const DISCONNECT_TIMEOUT = 30_000;
 const queues = new Map();
@@ -48,4 +48,30 @@ class GuildQueue {
   }
 }
 
-module.exports = { GuildQueue, queues, DISCONNECT_TIMEOUT };
+async function getOrCreateQueue(message, voiceChannel) {
+  const guildId = message.guildId;
+  const existing = queues.get(guildId);
+  if (existing) return existing;
+
+  const connection = joinVoiceChannel({
+    channelId: voiceChannel.id,
+    guildId,
+    adapterCreator: message.guild.voiceAdapterCreator,
+    selfDeaf: true,
+  });
+
+  connection.on('stateChange', (o, n) => console.log(`[Voice] ${o.status} → ${n.status}`));
+
+  try {
+    await entersState(connection, VoiceConnectionStatus.Ready, 30_000);
+  } catch (err) {
+    connection.destroy();
+    throw err;
+  }
+
+  const queue = new GuildQueue(guildId, voiceChannel, message.channel, connection);
+  queues.set(guildId, queue);
+  return queue;
+}
+
+module.exports = { GuildQueue, queues, DISCONNECT_TIMEOUT, getOrCreateQueue };
