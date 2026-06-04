@@ -1,28 +1,6 @@
-const { createAudioResource, StreamType, AudioPlayerStatus } = require('@discordjs/voice');
-const { spawn } = require('child_process');
+const { createAudioResource, AudioPlayerStatus } = require('@discordjs/voice');
+const play = require('play-dl');
 const { queues, DISCONNECT_TIMEOUT } = require('./queue');
-
-function spawnYtdlp(url) {
-  let binary = 'yt-dlp';
-
-  if (process.platform === 'win32') {
-    try {
-      // Usar el binario que yt-dlp-exec descargó localmente en Windows
-      const { YOUTUBE_DL_PATH } = require('yt-dlp-exec/src/constants');
-      binary = YOUTUBE_DL_PATH;
-    } catch {
-      binary = 'yt-dlp';
-    }
-  }
-
-  return spawn(binary, [
-    url,
-    '-o', '-',
-    '-f', 'bestaudio',
-    '--quiet',
-    '--no-warnings',
-  ]);
-}
 
 async function playSong(guildId, song, textChannel) {
   const queue = queues.get(guildId);
@@ -31,16 +9,8 @@ async function playSong(guildId, song, textChannel) {
   try {
     console.log('[Hibiki] Streaming:', song.url);
 
-    const ytProcess = spawnYtdlp(song.url);
-
-    if (!ytProcess.stdout) throw new Error('yt-dlp no produjo stdout');
-
-    ytProcess.stderr.on('data', d => console.error('[yt-dlp]', d.toString().trim()));
-    ytProcess.on('exit', (code) => console.log(`[yt-dlp] salió con código ${code}`));
-
-    const resource = createAudioResource(ytProcess.stdout, {
-      inputType: StreamType.Arbitrary,
-    });
+    const stream = await play.stream(song.url, { quality: 2 });
+    const resource = createAudioResource(stream.stream, { inputType: stream.type });
 
     queue.player.play(resource);
     queue.isPlaying = true;
