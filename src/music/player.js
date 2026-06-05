@@ -17,7 +17,7 @@ function spawnYtdlp(url) {
   const args = [
     url,
     '-o', '-',
-    '-f', 'bestaudio/best',
+    '-f', '22/18/best',
     '--quiet',
     '--no-warnings',
   ];
