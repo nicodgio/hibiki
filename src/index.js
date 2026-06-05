@@ -1,5 +1,4 @@
 require('dotenv').config();
-// Solo en Windows usamos ffmpeg-static; en Linux (Railway) ffmpeg está en PATH vía apt.
 if (process.platform === 'win32') {
   try { process.env.FFMPEG_PATH = require('ffmpeg-static'); } catch {}
 }
@@ -19,7 +18,6 @@ const client = new Client({
 
 client.commands = new Collection();
 
-// Cargar comandos (soporta objeto único o array)
 const commandsPath = path.join(__dirname, 'commands');
 for (const file of fs.readdirSync(commandsPath).filter(f => f.endsWith('.js'))) {
   const mod = require(path.join(commandsPath, file));
@@ -33,7 +31,6 @@ for (const file of fs.readdirSync(commandsPath).filter(f => f.endsWith('.js'))) 
   }
 }
 
-// Cargar eventos
 const eventsPath = path.join(__dirname, 'events');
 for (const file of fs.readdirSync(eventsPath).filter(f => f.endsWith('.js'))) {
   const event = require(path.join(eventsPath, file));

@@ -1,30 +1,6 @@
 const { createAudioResource, StreamType, AudioPlayerStatus } = require('@discordjs/voice');
 const { spawn } = require('child_process');
-const { writeFileSync } = require('fs');
 const { queues, DISCONNECT_TIMEOUT } = require('./queue');
-
-const COOKIE_FILE = '/tmp/yt-cookies.txt';
-let hasCookieFile = false;
-
-try {
-  const cookieStr = process.env.YOUTUBE_COOKIE;
-  if (cookieStr) {
-    const lines = ['# Netscape HTTP Cookie File'];
-    for (const part of cookieStr.split(';')) {
-      const trimmed = part.trim();
-      const eq = trimmed.indexOf('=');
-      if (eq <= 0) continue;
-      const name = trimmed.slice(0, eq).trim();
-      const value = trimmed.slice(eq + 1);
-      lines.push(`.youtube.com\tTRUE\t/\tFALSE\t2147483647\t${name}\t${value}`);
-    }
-    writeFileSync(COOKIE_FILE, lines.join('\n') + '\n');
-    hasCookieFile = true;
-    console.log('[Hibiki] Cookie file listo con', lines.length - 1, 'cookies.');
-  }
-} catch (err) {
-  console.error('[Hibiki] Error creando cookie file:', err.message);
-}
 
 function spawnYtdlp(url) {
   let binary = 'yt-dlp';
@@ -38,20 +14,13 @@ function spawnYtdlp(url) {
     }
   }
 
-  const args = [
+  return spawn(binary, [
     url,
     '-o', '-',
     '-f', 'bestaudio',
-    '--extractor-args', 'youtube:player_client=android',
     '--quiet',
     '--no-warnings',
-  ];
-
-  if (hasCookieFile) {
-    args.push('--cookies', COOKIE_FILE);
-  }
-
-  return spawn(binary, args);
+  ]);
 }
 
 async function playSong(guildId, song, textChannel) {
