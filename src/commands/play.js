@@ -45,7 +45,7 @@ module.exports = {
         const track = results[0];
         songs = [{
           title: track.name,
-          url: track.url,
+          url: `scsearch5:${track.name}`,
           duration: formatDuration(track.durationInSec),
           requestedBy: message.author.tag,
         }];

@@ -1,6 +1,35 @@
 const { createAudioResource, StreamType, AudioPlayerStatus } = require('@discordjs/voice');
-const play = require('play-dl');
+const { spawn } = require('child_process');
 const { queues, DISCONNECT_TIMEOUT } = require('./queue');
+
+const YTDLP_PATH = process.platform === 'win32'
+  ? require('yt-dlp-exec/src/constants').YOUTUBE_DL_PATH
+  : 'yt-dlp';
+
+function spawnStream(url) {
+  const isSCSearch = url.startsWith('scsearch');
+  const args = [
+    '-f', 'bestaudio/best',
+    '-o', '-',
+    '--quiet',
+    '--no-warnings',
+  ];
+
+  if (isSCSearch) {
+    args.push('--ignore-errors', '--max-downloads', '1');
+  } else {
+    args.push('--no-playlist');
+  }
+
+  args.push(url);
+
+  const proc = spawn(YTDLP_PATH, args);
+  proc.stderr.on('data', d => {
+    const msg = d.toString().trim();
+    if (msg) console.error('[yt-dlp]', msg);
+  });
+  return proc;
+}
 
 async function playSong(guildId, song, textChannel) {
   const queue = queues.get(guildId);
@@ -9,8 +38,8 @@ async function playSong(guildId, song, textChannel) {
   try {
     console.log('[Hibiki] Streaming:', song.url);
 
-    const stream = await play.stream(song.url);
-    const resource = createAudioResource(stream.stream, { inputType: stream.type });
+    const proc = spawnStream(song.url);
+    const resource = createAudioResource(proc.stdout, { inputType: StreamType.Arbitrary });
 
     queue.player.play(resource);
     queue.isPlaying = true;
@@ -24,6 +53,7 @@ async function playSong(guildId, song, textChannel) {
 
     queue.player.once(AudioPlayerStatus.Idle, () => {
       queue.isPlaying = false;
+      proc.kill();
 
       if (queue.songs.length > 0) {
         playSong(guildId, queue.shiftSong(), textChannel);

@@ -48,7 +48,7 @@ module.exports = {
 
     const songs = results.map(t => ({
       title: t.name,
-      url: t.url,
+      url: `scsearch5:${t.name}`,
       duration: formatDuration(t.durationInSec),
       requestedBy: message.author.tag,
     })).filter(s => s.url);
