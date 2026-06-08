@@ -1,33 +1,31 @@
 const { createAudioResource, StreamType, AudioPlayerStatus } = require('@discordjs/voice');
-const { spawn } = require('child_process');
+const ytdl = require('@distube/ytdl-core');
 const { queues, DISCONNECT_TIMEOUT } = require('./queue');
 
-function spawnYtdlp(url) {
-  let binary = 'yt-dlp';
+let ytdlAgent = null;
 
-  if (process.platform === 'win32') {
-    try {
-      const { YOUTUBE_DL_PATH } = require('yt-dlp-exec/src/constants');
-      binary = YOUTUBE_DL_PATH;
-    } catch {
-      binary = 'yt-dlp';
+const cookieStr = process.env.YOUTUBE_COOKIE;
+if (cookieStr) {
+  try {
+    const cookies = [];
+    for (const part of cookieStr.split(';')) {
+      const trimmed = part.trim();
+      const eq = trimmed.indexOf('=');
+      if (eq <= 0) continue;
+      cookies.push({
+        name: trimmed.slice(0, eq).trim(),
+        value: trimmed.slice(eq + 1),
+        domain: '.youtube.com',
+        path: '/',
+        httpOnly: false,
+        secure: true,
+      });
     }
+    ytdlAgent = ytdl.createAgent(cookies);
+    console.log('[Hibiki] ytdl agent listo con', cookies.length, 'cookies.');
+  } catch (err) {
+    console.error('[Hibiki] Error creando ytdl agent:', err.message);
   }
-
-  const args = [
-    url,
-    '-o', '-',
-    '-f', '251/140/250/249/bestaudio',
-    '--no-check-formats',
-    '--quiet',
-    '--no-warnings',
-  ];
-
-  if (process.env.YOUTUBE_COOKIE) {
-    args.push('--add-header', `Cookie:${process.env.YOUTUBE_COOKIE}`);
-  }
-
-  return spawn(binary, args);
 }
 
 async function playSong(guildId, song, textChannel) {
@@ -37,14 +35,17 @@ async function playSong(guildId, song, textChannel) {
   try {
     console.log('[Hibiki] Streaming:', song.url);
 
-    const ytProcess = spawnYtdlp(song.url);
+    const options = {
+      filter: 'audioonly',
+      quality: 'highestaudio',
+      highWaterMark: 1 << 25,
+    };
+    if (ytdlAgent) options.agent = ytdlAgent;
 
-    if (!ytProcess.stdout) throw new Error('yt-dlp no produjo stdout');
+    const stream = ytdl(song.url, options);
+    stream.on('error', err => console.error('[ytdl] Error de stream:', err.message));
 
-    ytProcess.stderr.on('data', d => console.error('[yt-dlp]', d.toString().trim()));
-    ytProcess.on('exit', (code) => console.log(`[yt-dlp] salió con código ${code}`));
-
-    const resource = createAudioResource(ytProcess.stdout, {
+    const resource = createAudioResource(stream, {
       inputType: StreamType.Arbitrary,
     });
 
