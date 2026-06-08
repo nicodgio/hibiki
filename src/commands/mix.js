@@ -33,8 +33,8 @@ module.exports = {
 
     let results;
     try {
-      results = await play.search(`${artistQuery} top songs`, {
-        source: { youtube: 'video' },
+      results = await play.search(artistQuery, {
+        source: { soundcloud: 'tracks' },
         limit,
       });
     } catch (err) {
@@ -46,12 +46,12 @@ module.exports = {
       return aviso.edit(`📜 No se encontraron melodías para **${artistQuery}**.`);
     }
 
-    const songs = results.map(v => ({
-      title: v.title,
-      url: v.url ?? `https://www.youtube.com/watch?v=${v.id}`,
-      duration: formatDuration(v.durationInSec),
+    const songs = results.map(t => ({
+      title: t.name,
+      url: t.url,
+      duration: formatDuration(t.durationInSec),
       requestedBy: message.author.tag,
-    })).filter(s => s.url && !s.url.includes('undefined'));
+    })).filter(s => s.url);
 
     let queue;
     try {

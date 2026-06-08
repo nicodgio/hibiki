@@ -1,5 +1,5 @@
 const play = require('play-dl');
-const { queues, getOrCreateQueue } = require('../music/queue');
+const { getOrCreateQueue } = require('../music/queue');
 const { playSong } = require('../music/player');
 
 module.exports = {
@@ -18,7 +18,7 @@ module.exports = {
 
     const query = args.join(' ');
     if (!query) {
-      return message.reply('📜 Indica una melodía, URL o playlist.\n> Ejemplo: `>invocar nombre de canción`');
+      return message.reply('📜 Indica una melodía o URL de playlist.\n> Ejemplo: `>invocar nombre de canción`');
     }
 
     const aviso = await message.reply('🎐 El mensajero parte en busca de la melodía...');
@@ -32,33 +32,21 @@ module.exports = {
         const playlistInfo = await play.playlist_info(query, { incomplete: true });
         const videos = await playlistInfo.all_videos();
         if (!videos.length) return aviso.edit('📜 La playlist está vacía o no es accesible.');
-
         songs = videos.slice(0, 50).map(v => ({
           title: v.title,
           url: v.url,
           duration: formatDuration(v.durationInSec),
           requestedBy: message.author.tag,
         }));
-      } else if (validated === 'video') {
-        const info = await play.video_info(query);
-        songs = [{
-          title: info.video_details.title,
-          url: info.video_details.url,
-          duration: formatDuration(info.video_details.durationInSec),
-          requestedBy: message.author.tag,
-        }];
       } else {
-        const results = await play.search(query, { source: { youtube: 'video' }, limit: 1 });
+        // Buscar en SoundCloud para evitar bloqueos de YouTube en el servidor
+        const results = await play.search(query, { source: { soundcloud: 'tracks' }, limit: 1 });
         if (!results.length) return aviso.edit('📜 Los pergaminos no contienen tal melodía.');
-        const video = results[0];
-        const videoUrl = video.url ?? `https://www.youtube.com/watch?v=${video.id}`;
-        if (!videoUrl || videoUrl.includes('undefined')) {
-          return aviso.edit('📜 No fue posible resolver la melodía. Intenta con la URL directa.');
-        }
+        const track = results[0];
         songs = [{
-          title: video.title,
-          url: videoUrl,
-          duration: formatDuration(video.durationInSec),
+          title: track.name,
+          url: track.url,
+          duration: formatDuration(track.durationInSec),
           requestedBy: message.author.tag,
         }];
       }

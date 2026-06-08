@@ -1,32 +1,6 @@
 const { createAudioResource, StreamType, AudioPlayerStatus } = require('@discordjs/voice');
-const ytdl = require('@distube/ytdl-core');
+const play = require('play-dl');
 const { queues, DISCONNECT_TIMEOUT } = require('./queue');
-
-let ytdlAgent = null;
-
-const cookieStr = process.env.YOUTUBE_COOKIE;
-if (cookieStr) {
-  try {
-    const cookies = [];
-    for (const part of cookieStr.split(';')) {
-      const trimmed = part.trim();
-      const eq = trimmed.indexOf('=');
-      if (eq <= 0) continue;
-      cookies.push({
-        name: trimmed.slice(0, eq).trim(),
-        value: trimmed.slice(eq + 1),
-        domain: '.youtube.com',
-        path: '/',
-        httpOnly: false,
-        secure: true,
-      });
-    }
-    ytdlAgent = ytdl.createAgent(cookies);
-    console.log('[Hibiki] ytdl agent listo con', cookies.length, 'cookies.');
-  } catch (err) {
-    console.error('[Hibiki] Error creando ytdl agent:', err.message);
-  }
-}
 
 async function playSong(guildId, song, textChannel) {
   const queue = queues.get(guildId);
@@ -35,18 +9,8 @@ async function playSong(guildId, song, textChannel) {
   try {
     console.log('[Hibiki] Streaming:', song.url);
 
-    const options = {
-      filter: 'audioonly',
-      quality: 'highestaudio',
-      highWaterMark: 1 << 25,
-    };
-
-    const stream = ytdl(song.url, options);
-    stream.on('error', err => console.error('[ytdl] Error de stream:', err.message));
-
-    const resource = createAudioResource(stream, {
-      inputType: StreamType.Arbitrary,
-    });
+    const stream = await play.stream(song.url);
+    const resource = createAudioResource(stream.stream, { inputType: stream.type });
 
     queue.player.play(resource);
     queue.isPlaying = true;
