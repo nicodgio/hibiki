@@ -3,6 +3,12 @@ if (process.platform === 'win32') {
   try { process.env.FFMPEG_PATH = require('ffmpeg-static'); } catch {}
 }
 
+const play = require('play-dl');
+play.getFreeClientID().then(id => {
+  play.setToken({ soundcloud: { client_id: id } });
+  console.log('[Hibiki] SoundCloud listo.');
+}).catch(err => console.error('[Hibiki] SoundCloud error:', err.message));
+
 const { Client, GatewayIntentBits, Collection } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
