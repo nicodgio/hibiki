@@ -40,7 +40,6 @@ async function playSong(guildId, song, textChannel) {
       quality: 'highestaudio',
       highWaterMark: 1 << 25,
     };
-    if (ytdlAgent) options.agent = ytdlAgent;
 
     const stream = ytdl(song.url, options);
     stream.on('error', err => console.error('[ytdl] Error de stream:', err.message));
