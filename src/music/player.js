@@ -14,13 +14,19 @@ function spawnYtdlp(url) {
     }
   }
 
-  return spawn(binary, [
+  const args = [
     url,
     '-o', '-',
-    '-f', 'bestaudio',
+    '-f', '251/140/250/249/bestaudio',
     '--quiet',
     '--no-warnings',
-  ]);
+  ];
+
+  if (process.env.YOUTUBE_COOKIE) {
+    args.push('--add-header', `Cookie:${process.env.YOUTUBE_COOKIE}`);
+  }
+
+  return spawn(binary, args);
 }
 
 async function playSong(guildId, song, textChannel) {
