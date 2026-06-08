@@ -18,6 +18,7 @@ function spawnYtdlp(url) {
     url,
     '-o', '-',
     '-f', '251/140/250/249/bestaudio',
+    '--no-check-formats',
     '--quiet',
     '--no-warnings',
   ];
